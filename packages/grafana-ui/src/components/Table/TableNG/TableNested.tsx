@@ -224,13 +224,22 @@ export function TableNested(props: TableNGProps & { nestedFramesField: Field<Dat
     [getCellActions]
   );
 
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => {
-    if (data.meta?.custom?.expandAllRows) {
-      const nestedField = data.fields.find((f) => f.type === FieldType.nestedFrames);
-      return new Set(Array.from({ length: data.length }, (_, i) => getStableRowKey(i, nestedField?.values?.[i]?.[0])));
+  const expandAllRows = Boolean(data.meta?.custom?.expandAllRows);
+  const rowKeys = useMemo(() => nestedData.map((frame, i) => getStableRowKey(i, frame)), [nestedData]);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set(expandAllRows ? rowKeys : []));
+
+  // Rows that a refresh adds start expanded too. Rows that were already shown keep the user's choice.
+  const [prevRowKeys, setPrevRowKeys] = useState(rowKeys);
+  if (rowKeys !== prevRowKeys) {
+    setPrevRowKeys(rowKeys);
+    if (expandAllRows) {
+      const shownKeys = new Set(prevRowKeys);
+      const addedKeys = rowKeys.filter((key) => !shownKeys.has(key));
+      if (addedKeys.length > 0) {
+        setExpandedRows((rows) => new Set([...rows, ...addedKeys]));
+      }
     }
-    return new Set();
-  });
+  }
 
   const gridRef = useRef<DataGridHandle>(null);
   const scrollbarWidth = useScrollbarWidth(gridRef, height);

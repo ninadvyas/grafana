@@ -1191,6 +1191,47 @@ describe('TableNG', () => {
       expect(screen.getByText('nested-B')).toBeInTheDocument();
       expect(screen.queryByText('nested-A')).not.toBeInTheDocument();
     });
+
+    it('expands rows that new data adds when expandAllRows is set, and keeps rows the user collapsed', async () => {
+      const makeFrame = (keys: string[]): DataFrame =>
+        withFieldOverrides(
+          toDataFrame({
+            name: 'ExpandAllTest',
+            length: keys.length,
+            meta: { custom: { expandAllRows: true } },
+            fields: [
+              { name: 'Label', type: FieldType.string, values: keys.map((k) => `Row ${k}`), config: {} },
+              {
+                name: '__nestedFrames',
+                type: FieldType.nestedFrames,
+                values: keys.map((k) => [
+                  {
+                    meta: { custom: { stableRowKey: k, noHeader: true } },
+                    length: 1,
+                    fields: [{ name: 'Info', type: FieldType.string, values: [`nested-${k}`], config: {} }],
+                  },
+                ]),
+                config: {},
+              },
+            ],
+          })
+        );
+
+      const { rerender, container } = render(<TableNG data={makeFrame(['A', 'B'])} width={800} height={600} />);
+
+      expect(screen.getByText('nested-A')).toBeInTheDocument();
+      expect(screen.getByText('nested-B')).toBeInTheDocument();
+
+      // Collapse A, then refresh with the same rows plus a new row C
+      await user.click(container.querySelector('[aria-label="Collapse row"]')!);
+      expect(screen.queryByText('nested-A')).not.toBeInTheDocument();
+
+      rerender(<TableNG data={makeFrame(['A', 'B', 'C'])} width={800} height={600} />);
+
+      expect(screen.getByText('nested-C')).toBeInTheDocument();
+      expect(screen.getByText('nested-B')).toBeInTheDocument();
+      expect(screen.queryByText('nested-A')).not.toBeInTheDocument();
+    });
   });
 
   describe('Header options', () => {
